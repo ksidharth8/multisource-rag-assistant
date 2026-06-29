@@ -2,7 +2,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
@@ -192,8 +192,8 @@ def ingest_text(payload: TextIngestRequest) -> IngestResponse:
 
 @app.post("/ingest/file", response_model=IngestResponse, tags=["Ingestion"])
 def ingest_file(
-    collection_name: str,
-    source_name: str | None = None,
+    collection_name: str = Form(...),
+    source_name: str | None = Form(None),
     file: UploadFile = File(...),
 ) -> IngestResponse:
     validate_collection_name(collection_name)
