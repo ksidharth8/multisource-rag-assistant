@@ -28,6 +28,7 @@ def extract_youtube_video_id(url_or_id: str) -> str:
             return query_video_id
 
         parts = [part for part in parsed.path.split("/") if part]
+
         if "shorts" in parts:
             index = parts.index("shorts")
             if index + 1 < len(parts):
@@ -67,12 +68,37 @@ def transcript_items_to_text(items) -> str:
     return "\n".join(lines)
 
 
+def fetch_transcript(video_id: str):
+    api = YouTubeTranscriptApi()
+
+    try:
+        return api.fetch(video_id, languages=["en", "en-US", "hi"])
+    except NoTranscriptFound:
+        transcript_list = api.list(video_id)
+
+        try:
+            transcript = transcript_list.find_transcript(["en", "en-US", "hi"])
+            return transcript.fetch()
+        except NoTranscriptFound:
+            pass
+
+        try:
+            transcript = transcript_list.find_generated_transcript(["en", "en-US", "hi"])
+            return transcript.fetch()
+        except NoTranscriptFound:
+            pass
+
+        for transcript in transcript_list:
+            return transcript.fetch()
+
+        raise
+
+
 def load_youtube_transcript(url_or_id: str) -> dict:
     video_id = extract_youtube_video_id(url_or_id)
 
     try:
-        api = YouTubeTranscriptApi()
-        transcript = api.fetch(video_id, languages=["en", "en-US", "hi"])
+        transcript = fetch_transcript(video_id)
         text = transcript_items_to_text(transcript)
     except AttributeError:
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["en", "en-US", "hi"])

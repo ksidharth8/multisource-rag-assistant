@@ -21,8 +21,10 @@ def normalize_collection_name(name: str) -> str:
     name = name.strip().lower()
     name = re.sub(r"[^a-z0-9_-]+", "-", name)
     name = name.strip("-_")
+
     if len(name) < 3:
         name = f"kb-{name or 'default'}"
+
     return name[:63]
 
 
@@ -39,13 +41,16 @@ class VectorStore:
         settings = get_settings()
 
         if not settings.database_url:
-            raise RuntimeError("DATABASE_URL is missing. Add your Supabase Postgres connection string to backend/.env")
+            raise RuntimeError("DATABASE_URL is missing.")
 
         self.pool = ConnectionPool(
             conninfo=settings.database_url,
             min_size=settings.db_pool_min_size,
             max_size=settings.db_pool_max_size,
-            kwargs={"row_factory": dict_row},
+            kwargs={
+                "row_factory": dict_row,
+                "prepare_threshold": None,
+            },
             open=True,
         )
 
@@ -136,7 +141,8 @@ class VectorStore:
                 )
 
                 log_timing("postgres insert", time.perf_counter() - t1)
-                return len(chunks)
+
+        return len(chunks)
 
     def query(self, collection_name: str, question: str, top_k: int = 5) -> list[dict[str, Any]]:
         collection = normalize_collection_name(collection_name)
