@@ -103,7 +103,15 @@ def ingest_text_to_vector_db(
     cleaned_text = clean_text(text)
     validate_text(cleaned_text)
 
-    chunks = chunk_text(cleaned_text)
+    original_characters = len(cleaned_text)
+
+    if len(cleaned_text) > settings.max_source_chars:
+        cleaned_text = cleaned_text[: settings.max_source_chars]
+
+    chunks = chunk_text(
+        cleaned_text,
+        max_chunks=settings.max_chunks_per_source,
+    )
 
     if not chunks:
         raise HTTPException(status_code=400, detail="Text was extracted but no chunks were created.")
@@ -116,18 +124,24 @@ def ingest_text_to_vector_db(
         chunks=chunks,
     )
 
-    added_count = get_vector_store().add_chunks(
-        normalized_collection,
-        [chunk.text for chunk in chunks],
-        metadatas,
-    )
+    try:
+        added_count = get_vector_store().add_chunks(
+            normalized_collection,
+            [chunk.text for chunk in chunks],
+            metadatas,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Vector store insert failed: {type(exc).__name__}",
+        ) from exc
 
     return IngestResponse(
         collection_name=normalized_collection,
         source_type=source_type,
         source_name=source_name,
         chunks_added=added_count,
-        characters=len(cleaned_text),
+        characters=original_characters,
     )
 
 
